@@ -1,11 +1,16 @@
 const int SPEAKER = 8;
 const int GATE_SENSOR = 2;
-const int DISARM = 4;
 const int ARMED_LIGHT = 7;
 
 const int STATE_HIGH = 5;
 const int STATE_LOW = 6;
 const int STATE_UNCHANGED = 7;
+
+const int WAITING = 10;
+const int SILENT = 11;
+const int ALARM = 12;
+
+int currentState = SILENT;
 
 bool isArmed = true;
 unsigned int timeOfLastDisarmPush = 0;
@@ -16,12 +21,33 @@ int currentLightState = LOW;
 void setup() {
   pinMode(SPEAKER, OUTPUT);
   pinMode(GATE_SENSOR, INPUT);
-  pinMode(DISARM, INPUT);
   pinMode(ARMED_LIGHT, OUTPUT);
 }
 
 void loop() {
   unsigned int currentTime = millis();
+  /*
+  three states:
+    silent
+    waiting
+    alarm
+
+  if in silent state:
+    if gate switch is not pressed:
+      switch to waiting state
+  else if in waiting state:
+    if gate switch is pressed:
+      switch to silent state
+    else if time has elapsed:
+      switch to alarm state
+    blink the light
+  else if in alarm state:
+    if gate switch is pressed:
+      switch to silent state
+    alarm
+
+
+  */
   if (getDebouncedDisarmSwitchState() == STATE_HIGH) {
     timeOfLastDisarmPush = currentTime;
     isArmed = false;
@@ -42,7 +68,7 @@ void loop() {
   }
 
   if (isArmed && digitalRead(GATE_SENSOR) == LOW) {
-    tone(SPEAKER, 100, 100);
+    // tone(SPEAKER, 100, 100);
   }
 }
 
