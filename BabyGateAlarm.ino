@@ -18,6 +18,42 @@ unsigned int timeOfLastDisarmPush = 0;
 unsigned int timeOfLastLightChange = 0;
 int currentLightState = LOW;
 
+unsigned int timeOfGateOpen = 0;
+
+class Button {
+  private:
+    unsigned int timeOfLastButtonPush = 0;
+    int lastReading = LOW;
+    int timeOfLastChange = 0;
+    int currentState = LOW;
+    int pin;
+    const int DEBOUNCE_DELAY = 50;
+
+  public:
+    Button(int pin) {
+      this->pin = pin;
+    }
+
+    int getDebouncedSwitchState() {
+      int currentReading = digitalRead(pin);
+      if (currentReading != lastReading) {
+        timeOfLastChange = millis();
+      } else if ((millis() - timeOfLastChange) > DEBOUNCE_DELAY && currentReading != currentState) {
+        currentState = currentReading;
+        switch (currentState) {
+          case HIGH:
+            return STATE_HIGH;
+          case LOW:
+            return STATE_LOW;
+        }
+      }
+      lastReading = currentReading;
+      return STATE_UNCHANGED;
+    }
+};
+
+Button gateButton(GATE_SENSOR);
+
 void setup() {
   pinMode(SPEAKER, OUTPUT);
   pinMode(GATE_SENSOR, INPUT);
@@ -26,70 +62,29 @@ void setup() {
 
 void loop() {
   unsigned int currentTime = millis();
-  /*
-  three states:
-    silent
-    waiting
-    alarm
-
-  if in silent state:
-    if gate switch is not pressed:
-      switch to waiting state
-  else if in waiting state:
-    if gate switch is pressed:
-      switch to silent state
-    else if time has elapsed:
-      switch to alarm state
-    blink the light
-  else if in alarm state:
-    if gate switch is pressed:
-      switch to silent state
-    alarm
-
-
-  */
-  if (getDebouncedDisarmSwitchState() == STATE_HIGH) {
-    timeOfLastDisarmPush = currentTime;
-    isArmed = false;
-  }
-  if (!isArmed && (currentTime - timeOfLastDisarmPush) > 30000) {
-      isArmed = true;
-  }
-
-  if (isArmed && currentLightState == LOW) {
-    currentLightState = HIGH;
-    digitalWrite(ARMED_LIGHT, currentLightState);
-  } else if (!isArmed) {
-    if ((currentTime - timeOfLastLightChange) > 1000) {
+  if (currentState == SILENT) {
+    if (gateButton.getDebouncedSwitchState() == STATE_LOW) {
+      currentState = WAITING;
+      timeOfGateOpen = currentTime;
+    }
+  } else if (currentState == WAITING) {
+    if (gateButton.getDebouncedSwitchState() == STATE_HIGH) {
+      currentState = SILENT;
+      currentLightState = HIGH;
+      digitalWrite(ARMED_LIGHT, currentLightState);
+    } else if (currentTime - timeOfGateOpen > 7000) {
+      currentState = ALARM;
+      currentLightState = HIGH;
+      digitalWrite(ARMED_LIGHT, currentLightState);
+    } else if ((currentTime - timeOfLastLightChange) > 1000) {
       currentLightState = !currentLightState;
       digitalWrite(ARMED_LIGHT, currentLightState);
       timeOfLastLightChange = currentTime;
     }
-  }
-
-  if (isArmed && digitalRead(GATE_SENSOR) == LOW) {
-    // tone(SPEAKER, 100, 100);
-  }
-}
-
-int lastDisarmReading = LOW;
-int timeOfLastDisarmChange = 0;
-int currentDisarmState = LOW;
-const int DEBOUNCE_DELAY = 50;
-
-int getDebouncedDisarmSwitchState() {
-  int currentDisarmReading = digitalRead(DISARM);
-  if (currentDisarmReading != lastDisarmReading) {
-    timeOfLastDisarmChange = millis();
-  } else if ((millis() - timeOfLastDisarmChange) > DEBOUNCE_DELAY && currentDisarmReading != currentDisarmState) {
-    currentDisarmState = currentDisarmReading;
-    switch (currentDisarmState) {
-      case HIGH:
-        return STATE_HIGH;
-      case LOW:
-        return STATE_LOW;
+  } else if (currentState == ALARM) {
+    if (gateButton.getDebouncedSwitchState() == STATE_HIGH) {
+      currentState = SILENT;
     }
+    tone(SPEAKER, 100, 100);
   }
-  lastDisarmReading = currentDisarmReading;
-  return STATE_UNCHANGED;
 }
