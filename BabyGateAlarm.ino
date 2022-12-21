@@ -2,23 +2,29 @@ const int SPEAKER = 8;
 const int GATE_SENSOR = 2;
 const int ARMED_LIGHT = 7;
 
-const int STATE_HIGH = 5;
-const int STATE_LOW = 6;
-const int STATE_UNCHANGED = 7;
+enum SensorState {
+  Waiting,
+  Silent,
+  Alarm
+};
 
-const int WAITING = 10;
-const int SILENT = 11;
-const int ALARM = 12;
+class Logger {
+  private:
+    bool enabled = false;
+  public:
+    void log(char* str) {
+      if (enabled) {
+        Serial.println(str);
+      }
+    }
 
-int currentState = SILENT;
+    void setup() {
+      if (enabled) {
+        Serial.begin(9600);
+      }
+    }
+};
 
-bool isArmed = true;
-unsigned int timeOfLastDisarmPush = 0;
-
-unsigned int timeOfLastLightChange = 0;
-int currentLightState = LOW;
-
-unsigned int timeOfGateOpen = 0;
 
 class Button {
   private:
@@ -40,50 +46,70 @@ class Button {
         timeOfLastChange = millis();
       } else if ((millis() - timeOfLastChange) > DEBOUNCE_DELAY && currentReading != currentState) {
         currentState = currentReading;
-        switch (currentState) {
-          case HIGH:
-            return STATE_HIGH;
-          case LOW:
-            return STATE_LOW;
-        }
       }
       lastReading = currentReading;
-      return STATE_UNCHANGED;
+      return currentState;
     }
 };
 
+class Light {
+  private:
+    unsigned int timeOfLastLightChange = 0;
+    int currentLightState = LOW;
+  public:
+    void turnOn() {
+      currentLightState = HIGH;
+      digitalWrite(ARMED_LIGHT, currentLightState);
+    }
+
+    void blink() {
+      unsigned int currentTime = millis();
+      if ((currentTime - timeOfLastLightChange) > 500) {
+        currentLightState = !currentLightState;
+        digitalWrite(ARMED_LIGHT, currentLightState);
+        timeOfLastLightChange = currentTime;
+      }
+    }
+};
+
+Light light;
 Button gateButton(GATE_SENSOR);
+Logger logger;
+SensorState currentState = Silent;
+unsigned int timeOfGateOpen = 0;
 
 void setup() {
   pinMode(SPEAKER, OUTPUT);
   pinMode(GATE_SENSOR, INPUT);
   pinMode(ARMED_LIGHT, OUTPUT);
+  Serial.begin(9600);
+  logger.setup();
+  light.turnOn();
 }
 
 void loop() {
   unsigned int currentTime = millis();
-  if (currentState == SILENT) {
-    if (gateButton.getDebouncedSwitchState() == STATE_LOW) {
-      currentState = WAITING;
+  char str[100];
+  sprintf(str, "time: %u, currentState: %d, switch state: %d", currentTime, currentState, gateButton.getDebouncedSwitchState());
+  logger.log(str);
+  if (currentState == Silent) {
+    if (gateButton.getDebouncedSwitchState() == LOW) {
+      currentState = Waiting;
       timeOfGateOpen = currentTime;
     }
-  } else if (currentState == WAITING) {
-    if (gateButton.getDebouncedSwitchState() == STATE_HIGH) {
-      currentState = SILENT;
-      currentLightState = HIGH;
-      digitalWrite(ARMED_LIGHT, currentLightState);
+  } else if (currentState == Waiting) {
+    if (gateButton.getDebouncedSwitchState() == HIGH) {
+      currentState = Silent;
+      light.turnOn();
     } else if (currentTime - timeOfGateOpen > 7000) {
-      currentState = ALARM;
-      currentLightState = HIGH;
-      digitalWrite(ARMED_LIGHT, currentLightState);
-    } else if ((currentTime - timeOfLastLightChange) > 1000) {
-      currentLightState = !currentLightState;
-      digitalWrite(ARMED_LIGHT, currentLightState);
-      timeOfLastLightChange = currentTime;
+      currentState = Alarm;
+      light.turnOn();
+    } else {
+      light.blink();
     }
-  } else if (currentState == ALARM) {
-    if (gateButton.getDebouncedSwitchState() == STATE_HIGH) {
-      currentState = SILENT;
+  } else if (currentState == Alarm) {
+    if (gateButton.getDebouncedSwitchState() == HIGH) {
+      currentState = Silent;
     }
     tone(SPEAKER, 100, 100);
   }
