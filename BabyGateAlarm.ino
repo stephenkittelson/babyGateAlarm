@@ -1,6 +1,10 @@
 const int SPEAKER = 8;
 const int GATE_SENSOR = 2;
 const int ARMED_LIGHT = 7;
+const int ARMED_LIGHT_2 = 4;
+const int ARMED_LIGHT_3 = 12;
+
+#define LOG_ENABLED 0
 
 enum SensorState {
   Waiting,
@@ -9,19 +13,17 @@ enum SensorState {
 };
 
 class Logger {
-  private:
-    bool enabled = false;
   public:
     void log(char* str) {
-      if (enabled) {
-        Serial.println(str);
-      }
+#if LOG_ENABLED
+      Serial.println(str);
+#endif
     }
 
     void setup() {
-      if (enabled) {
-        Serial.begin(9600);
-      }
+#if LOG_ENABLED
+      Serial.begin(9600);
+#endif
     }
 };
 
@@ -60,6 +62,8 @@ class Light {
     void turnOn() {
       currentLightState = HIGH;
       digitalWrite(ARMED_LIGHT, currentLightState);
+      digitalWrite(ARMED_LIGHT_2, currentLightState);
+      digitalWrite(ARMED_LIGHT_3, currentLightState);
     }
 
     void blink() {
@@ -82,7 +86,8 @@ void setup() {
   pinMode(SPEAKER, OUTPUT);
   pinMode(GATE_SENSOR, INPUT);
   pinMode(ARMED_LIGHT, OUTPUT);
-  Serial.begin(9600);
+  pinMode(ARMED_LIGHT_2, OUTPUT);
+  pinMode(ARMED_LIGHT_3, OUTPUT);
   logger.setup();
   light.turnOn();
 }
