@@ -1,8 +1,7 @@
 const int SPEAKER = 8;
 const int GATE_SENSOR = 2;
-const int ARMED_LIGHT = 7;
-const int ARMED_LIGHT_2 = 4;
-const int ARMED_LIGHT_3 = 12;
+const int ARMED_LIGHTS[] = {4, 5, 6, 7, 9, 10, 11, 12, 13};
+const int NUM_ARMED_LIGHTS = 9;
 
 #define LOG_ENABLED 0
 
@@ -61,16 +60,16 @@ class Light {
   public:
     void turnOn() {
       currentLightState = HIGH;
-      digitalWrite(ARMED_LIGHT, currentLightState);
-      digitalWrite(ARMED_LIGHT_2, currentLightState);
-      digitalWrite(ARMED_LIGHT_3, currentLightState);
+      for (int i = 0; i < NUM_ARMED_LIGHTS; i++) {
+        digitalWrite(ARMED_LIGHTS[i], currentLightState);
+      }
     }
 
     void blink() {
       unsigned int currentTime = millis();
       if ((currentTime - timeOfLastLightChange) > 500) {
         currentLightState = !currentLightState;
-        digitalWrite(ARMED_LIGHT, currentLightState);
+        digitalWrite(ARMED_LIGHTS[0], currentLightState);
         timeOfLastLightChange = currentTime;
       }
     }
@@ -85,9 +84,9 @@ unsigned int timeOfGateOpen = 0;
 void setup() {
   pinMode(SPEAKER, OUTPUT);
   pinMode(GATE_SENSOR, INPUT);
-  pinMode(ARMED_LIGHT, OUTPUT);
-  pinMode(ARMED_LIGHT_2, OUTPUT);
-  pinMode(ARMED_LIGHT_3, OUTPUT);
+  for (int i = 0; i < NUM_ARMED_LIGHTS; i++) {
+    pinMode(ARMED_LIGHTS[i], OUTPUT);
+  }
   logger.setup();
   light.turnOn();
 }
