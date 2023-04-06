@@ -57,6 +57,7 @@ class Light {
   private:
     unsigned int timeOfLastLightChange = 0;
     int currentLightState = LOW;
+    int blinkTime = 0;
   public:
     void turnOn() {
       currentLightState = HIGH;
@@ -67,9 +68,19 @@ class Light {
 
     void blink() {
       unsigned int currentTime = millis();
-      if ((currentTime - timeOfLastLightChange) > 500) {
-        currentLightState = !currentLightState;
-        digitalWrite(ARMED_LIGHTS[0], currentLightState);
+      if ((currentTime - timeOfLastLightChange) > 100) {
+        unsigned short lightStates = 0b0111;
+        lightStates = ((lightStates << blinkTime) | ((lightStates & 0xFE00) >> NUM_ARMED_LIGHTS)) & 0x01FF;
+        blinkTime = (blinkTime + 1) % NUM_ARMED_LIGHTS;
+        for (int i = 0; i < NUM_ARMED_LIGHTS; i++) {
+          int lightState;
+          if (lightStates & (1 << i)) {
+            lightState = HIGH;
+          } else {
+            lightState = LOW;
+          }
+          digitalWrite(ARMED_LIGHTS[i], lightState);
+        }
         timeOfLastLightChange = currentTime;
       }
     }
