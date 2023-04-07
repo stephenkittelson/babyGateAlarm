@@ -1,6 +1,6 @@
 const int SPEAKER = 8;
 const int GATE_SENSOR = 2;
-const int ARMED_LIGHTS[] = {4, 5, 6, 7, 9, 10, 11, 12, 13};
+const int ARMED_LIGHTS[] = {5, 13, 12, 4, 7, 11, 10, 9, 6};
 const int NUM_ARMED_LIGHTS = 9;
 
 #define LOG_ENABLED 0
@@ -68,9 +68,9 @@ class Light {
 
     void blink() {
       unsigned int currentTime = millis();
-      if ((currentTime - timeOfLastLightChange) > 100) {
-        unsigned short lightStates = 0b0111;
-        lightStates = ((lightStates << blinkTime) | ((lightStates & 0xFE00) >> NUM_ARMED_LIGHTS)) & 0x01FF;
+      if ((currentTime - timeOfLastLightChange) > 50) {
+        unsigned short lightStates = 0b0111 << blinkTime;
+        lightStates = (lightStates | ((lightStates & 0xFE00) >> NUM_ARMED_LIGHTS)) & 0x01FF;
         blinkTime = (blinkTime + 1) % NUM_ARMED_LIGHTS;
         for (int i = 0; i < NUM_ARMED_LIGHTS; i++) {
           int lightState;
